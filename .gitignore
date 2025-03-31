@@ -1,3 +1,22 @@
+# MATLAB
+*.asv
+*.m~
+*.mex*
+octave-workspace
+
+# Data and third-party code fetched at run time
+*.zip
+/TrainingData/
+/PredictionMaps/
+/code_forMetrics/
+/code_forVisualization/
+/saliency/
+/FES/
+/result/
+
+# OS
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

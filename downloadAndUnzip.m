@@ -1,92 +1,81 @@
-function checkAndUnzipData()
+function downloadAndUnzip()
+% DOWNLOADANDUNZIP  Fetch and unpack the data that evaluate.m reads.
+%
+%   Purpose   : Makes sure TrainingData/ (fixation maps) and PredictionMaps/
+%               (model outputs) exist in the current folder.
+%   Inputs    : None. For each folder that is missing or empty, the function
+%               uses TrainingData.zip or PredictionMaps.zip from the current
+%               folder if it is there, and downloads it otherwise.
+%   Outputs   : TrainingData/ and PredictionMaps/ in the current folder. A
+%               zip this function downloaded is deleted after extraction. A
+%               zip that was already present is kept.
+%   Run order : 1. downloadAndUnzip  2. cloneMetricsCode  3. evaluate
+%               4. visualize
+
     trainingDataFolder = 'TrainingData';
-    if ~isfolder(trainingDataFolder) || isempty(dir(fullfile(trainingDataFolder, '*.*')))
-        fprintf('The folder "%s" is missing or empty. Setting up training data...\n', trainingDataFolder);
-        
-        trainingDataZip = 'TrainingData.zip';
-        zipDownloaded = false;
-        
-        if isfile(trainingDataZip)
-            fprintf('Found %s locally.\n', trainingDataZip);
-        else
-            fprintf('TrainingData.zip not found locally. Attempting to download...\n');
-            trainingDataUrl = 'https://shehqm88uj.ufs.sh/f/1nZKRMz7cdXZ6yMLdyJDxKSmfpinT19bdYB3FtkcHMuy72NI';
-            downloadFile(trainingDataUrl, trainingDataZip);
-            zipDownloaded = true;
-            
-            if ~isfile(trainingDataZip)
-                error('Failed to download TrainingData.zip. Please check your internet connection or manually place the file in the current directory.');
-            end
-        end
-        
-        if ~isfolder(trainingDataFolder)
-            mkdir(trainingDataFolder);
-        end
-        
-        % Unzip the training data
-        fprintf('Unzipping %s...\n', trainingDataZip);
-        unzip(trainingDataZip);
-        
-        % Clean up
-        if zipDownloaded && isfile(trainingDataZip)
-            fprintf('Removing downloaded zip file %s...\n', trainingDataZip);
-            delete(trainingDataZip);
-        end
-    end
-    
-    % Check PredictionMaps folder
-    predMapsFolder = 'PredictionMaps';
-    if ~isfolder(predMapsFolder) || isempty(dir(fullfile(predMapsFolder, '*.*')))
-        fprintf('The folder "%s" is missing or empty. Setting up prediction maps...\n', predMapsFolder);
-        
-        predMapsZip = 'PredictionMaps.zip';
-        zipDownloaded = false;
-        
-        if isfile(predMapsZip)
-            fprintf('Found %s locally.\n', predMapsZip);
-        else
-            fprintf('PredictionMaps.zip not found locally. Attempting to download...\n');
-            predMapsUrl = 'https://shehqm88uj.ufs.sh/f/1nZKRMz7cdXZNp8NWuUznJYaMv3VymWLqfrIt9AeXDpZRChK';
-            downloadFile(predMapsUrl, predMapsZip);
-            zipDownloaded = true;
-            
-            if ~isfile(predMapsZip)
-                error('Failed to download PredictionMaps.zip. Please check your internet connection or manually place the file in the current directory.');
-            end
-        end
-        
-        if ~isfolder(predMapsFolder)
-            mkdir(predMapsFolder);
-        end
-        
-        % Unzip the prediction maps
-        fprintf('Unzipping %s...\n', predMapsZip);
-        unzip(predMapsZip);
-        
-        % Clean up
-        if zipDownloaded && isfile(predMapsZip)
-            fprintf('Removing downloaded zip file %s...\n', predMapsZip);
-            delete(predMapsZip);
-        end
-    end
-    
-    % Check if the required subfolders exist
+
+    %% Fixation maps
+    ensureDataFolder(trainingDataFolder, 'TrainingData.zip', ...
+        'https://shehqm88uj.ufs.sh/f/1nZKRMz7cdXZ6yMLdyJDxKSmfpinT19bdYB3FtkcHMuy72NI');
+
+    %% Predicted saliency maps
+    ensureDataFolder('PredictionMaps', 'PredictionMaps.zip', ...
+        'https://shehqm88uj.ufs.sh/f/1nZKRMz7cdXZNp8NWuUznJYaMv3VymWLqfrIt9AeXDpZRChK');
+
+    %% Check the folders evaluate.m depends on
     tdFixFolder = fullfile(trainingDataFolder, 'TD_FixMaps');
     asdFixFolder = fullfile(trainingDataFolder, 'ASD_FixMaps');
-    
+
     if ~isfolder(tdFixFolder)
-        error('TD_FixMaps folder not found in TrainingData. Data structure may be incorrect.');
+        error('TD_FixMaps folder not found in TrainingData. TrainingData.zip must unpack to TrainingData/TD_FixMaps and TrainingData/ASD_FixMaps.');
     end
-    
+
     if ~isfolder(asdFixFolder)
-        error('ASD_FixMaps folder not found in TrainingData. Data structure may be incorrect.');
+        error('ASD_FixMaps folder not found in TrainingData. TrainingData.zip must unpack to TrainingData/TD_FixMaps and TrainingData/ASD_FixMaps.');
     end
-    
+
     fprintf('Data folders verified and ready for evaluation.\n');
 end
 
-% Helper function to download files
+function ensureDataFolder(dataFolder, zipName, zipUrl)
+% Unpack zipName into the current folder if dataFolder is missing or empty,
+% downloading the zip from zipUrl when there is no local copy.
+    if isfolder(dataFolder) && ~isempty(dir(fullfile(dataFolder, '*.*')))
+        return;
+    end
+
+    fprintf('The folder "%s" is missing or empty. Setting it up...\n', dataFolder);
+
+    zipDownloaded = false;
+
+    if isfile(zipName)
+        fprintf('Found %s locally.\n', zipName);
+    else
+        fprintf('%s not found locally. Attempting to download...\n', zipName);
+        downloadFile(zipUrl, zipName);
+        zipDownloaded = true;
+
+        if ~isfile(zipName)
+            error('Failed to download %s. Check the internet connection, or place the file in the current folder and run again.', zipName);
+        end
+    end
+
+    if ~isfolder(dataFolder)
+        mkdir(dataFolder);
+    end
+
+    fprintf('Unzipping %s...\n', zipName);
+    unzip(zipName);
+
+    if zipDownloaded && isfile(zipName)
+        fprintf('Removing downloaded zip file %s...\n', zipName);
+        delete(zipName);
+    end
+end
+
 function downloadFile(fileUrl, outputFilename)
+% Download fileUrl to outputFilename. A failure is reported here and the
+% caller raises the error once it sees the file is missing.
     try
         fprintf('Downloading %s...\n', outputFilename);
         websave(outputFilename, fileUrl);
