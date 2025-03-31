@@ -42,8 +42,8 @@ The metric implementations are the MIT Saliency Benchmark MATLAB functions from 
 1. `saliencyPredictionsCode/FES.m` and the two notebooks generate the saliency maps.
 2. The maps go into `PredictionMaps/<Model>/` as PNG files named after the source image. No script does this step. `downloadAndUnzip.m` fetches a packaged `PredictionMaps.zip` instead.
 3. `cloneMetricsCode.m` fetches the metric functions.
-4. `evaluate.m` writes per-image scores, one CSV per model and group.
-5. `visualize.m` plots the summary CSVs.
+4. `evaluate.m` writes per-image scores, one CSV per model and group, and a summary CSV per group.
+5. `visualize.m` plots the summary CSVs and saves the figures to `visuals/`.
 
 ## Results
 
@@ -66,6 +66,8 @@ ASD fixation maps:
 | TranSalNet | 0.825 | 0.630 | 1.743 | 2.140 |
 
 The summary files also hold the sample standard deviation behind each mean. The `TD_metrics_<Model>.csv` and `ASD_metrics_<Model>.csv` files hold the per-image scores.
+
+![Mean scores per model against TD and ASD fixation maps](visuals/bar.png)
 
 ## Findings and limitations
 
@@ -103,14 +105,14 @@ Then in MATLAB, with the repository as the current folder:
 ```matlab
 downloadAndUnzip    % TrainingData/ and PredictionMaps/
 cloneMetricsCode    % metric functions, added to the path for this session
-evaluate            % Results/TD_metrics_<Model>.csv and Results/ASD_metrics_<Model>.csv
-visualize           % figures from Results/TD_summary.csv and Results/ASD_summary.csv
+evaluate            % per-image and summary CSVs in Results/
+visualize           % figures from the summary CSVs, saved to visuals/
 ```
 
 Three things to know before running:
 
 - Data lives in the current folder as `TrainingData/TD_FixMaps`, `TrainingData/ASD_FixMaps` and `PredictionMaps/<Model>/*.png`. If `TrainingData.zip` or `PredictionMaps.zip` is already in the current folder, `downloadAndUnzip` unpacks that copy and skips the download.
-- `evaluate.m` writes the per-image CSVs only. `TD_summary.csv` and `ASD_summary.csv` hold the mean and sample standard deviation of those per-image scores, and the code that wrote them is not in this repository. `visualize.m` reads the committed copies, so they go stale if you re-run `evaluate.m` on different data.
+- `evaluate.m` overwrites the CSVs in `Results/`, and `visualize.m` overwrites the PNGs in `visuals/`. Copy them first if you want to keep the committed numbers.
 - `evaluate.m` and `visualize.m` clear the workspace when they start.
 
 ### Regenerating the saliency maps
@@ -131,8 +133,8 @@ Afterwards, unpack the maps into `PredictionMaps/FES`, `PredictionMaps/SalFBNet`
 .
 ├── downloadAndUnzip.m            fetch TrainingData/ and PredictionMaps/
 ├── cloneMetricsCode.m            fetch the metric code from cvzoya/saliency
-├── evaluate.m                    score predictions, write per-image CSVs
-├── visualize.m                   bar charts and heatmaps from the summary CSVs
+├── evaluate.m                    score predictions, write per-image and summary CSVs
+├── visualize.m                   bar charts and heatmaps, saved to visuals/
 ├── saliencyPredictionsCode/
 │   ├── FES.m                     FES maps, MATLAB
 │   ├── SalFBNet.ipynb            SalFBNet maps, Colab
@@ -142,11 +144,9 @@ Afterwards, unpack the maps into `PredictionMaps/FES`, `PredictionMaps/SalFBNet`
 │   ├── ASD_metrics_<Model>.csv   per-image scores against ASD maps
 │   ├── TD_summary.csv            mean and standard deviation per model
 │   └── ASD_summary.csv
-├── visuals/                      exported figures, see the note below
+├── visuals/                      bar.png, heatmap_td.png, heatmap_asd.png
 └── LICENSE
 ```
-
-The figures in `visuals/` do not match the CSVs in `Results/` and need regenerating. Use the tables above.
 
 ## Licence
 

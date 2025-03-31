@@ -11,9 +11,10 @@
 %               cloneMetricsCode sets up. Needs the Image Processing Toolbox.
 %   Outputs   : Results/TD_metrics_<Model>.csv and
 %               Results/ASD_metrics_<Model>.csv, one row per image.
-%               Per-model means are printed to the Command Window. The means
-%               (tdMean, asdMean) and sample standard deviations (tdStd,
-%               asdStd) stay in the workspace and are not written to disk.
+%               Results/TD_summary.csv and Results/ASD_summary.csv, one row
+%               per model with the mean and sample standard deviation of
+%               each metric. Per-model means are also printed to the
+%               Command Window.
 %   Notes     : Each fixation map is binarised with imbinarize and the same
 %               binary map goes to all four metrics. Predicted maps are
 %               scored as saved, with no extra blur. An image is skipped
@@ -159,3 +160,14 @@ asdMeanTable = array2table(asdMean, 'VariableNames', metricNames, ...
     'RowNames', {models.name});
 fprintf('\nMean scores against ASD fixation maps:\n');
 disp(asdMeanTable);
+
+%% Write the per-model summaries that visualize.m reads
+summaryNames = [strcat(metricNames, '_Mean'), strcat(metricNames, '_std')];
+
+tdSummary = array2table([tdMean, tdStd], 'VariableNames', summaryNames, ...
+    'RowNames', {models.name});
+writetable(tdSummary, fullfile(resultsDir, 'TD_summary.csv'), 'WriteRowNames', true);
+
+asdSummary = array2table([asdMean, asdStd], 'VariableNames', summaryNames, ...
+    'RowNames', {models.name});
+writetable(asdSummary, fullfile(resultsDir, 'ASD_summary.csv'), 'WriteRowNames', true);
