@@ -6,48 +6,34 @@ FES had the worst mean on every metric in both groups. Five images could not sep
 
 ## Question
 
-Saliency models are trained on fixation data pooled from TD viewers. How do published models score against ASD fixation maps compared with TD maps, and what does each standard metric count when it scores them?
+Saliency models are trained on fixation data pooled from TD viewers. How do they score against ASD fixation maps compared with TD maps, and what does each metric count when it scores them?
 
 ## Data and models
 
-The notebooks read the images from `Saliency4asd.zip`. `evaluate.m` reads the group fixation maps from `TrainingData/TD_FixMaps` and `TrainingData/ASD_FixMaps`, which `TrainingData.zip` provides. The fixation map for `<name>.png` is `<name>_s.png`. The results files cover five images: 1, 10, 100, 101 and 102.
+The images come from `Saliency4asd.zip`, and the group fixation maps from `TrainingData.zip` (`TD_FixMaps` and `ASD_FixMaps`). The results cover five images: 1, 10, 100, 101 and 102.
 
 | Model | Type | Source | How I ran it |
 |---|---|---|---|
-| FES | Classical hand-designed feature model | [hrtavakoli/FES](https://github.com/hrtavakoli/FES) | MATLAB, `saliencyPredictionsCode/FES.m` |
-| SalFBNet | Feedback-recurrent convolutional network | [gqding/SalFBNet](https://github.com/gqding/SalFBNet) | PyTorch on Colab, pretrained `FBNet_Res18Fixed_best_model.pth` |
-| TranSalNet | Transformer-augmented encoder-decoder | [LJOVO/TranSalNet](https://github.com/LJOVO/TranSalNet) | PyTorch on Colab, pretrained `TranSalNet_Res.pth` |
+| FES | Classical hand-designed features | [hrtavakoli/FES](https://github.com/hrtavakoli/FES) | MATLAB, `saliencyPredictionsCode/FES.m` |
+| SalFBNet | Feedback-recurrent CNN | [gqding/SalFBNet](https://github.com/gqding/SalFBNet) | PyTorch on Colab, pretrained weights |
+| TranSalNet | Transformer-augmented encoder-decoder | [LJOVO/TranSalNet](https://github.com/LJOVO/TranSalNet) | PyTorch on Colab, pretrained weights |
 
-I ran each model's published code, with pretrained weights for the two deep models. I did not retrain or fine-tune anything.
+I ran each model's published code and did not retrain or fine-tune anything. The metrics are the MIT Saliency Benchmark MATLAB functions from [cvzoya/saliency](https://github.com/cvzoya/saliency).
 
-The metric implementations are the MIT Saliency Benchmark MATLAB functions from [cvzoya/saliency](https://github.com/cvzoya/saliency).
+## Metrics
 
-## Method
+| Metric | What it counts | Better |
+|---|---|---|
+| AUC-Borji | The map as a pixel classifier, with negatives sampled uniformly. Only the ordering of pixel values matters, and centre bias is not corrected. | Higher |
+| CC | Pearson correlation with the ground truth. False positives and false negatives cost the same. | Higher |
+| KL divergence | Asymmetric. Missing a fixated region costs far more than spreading density over unfixated ones. | Lower |
+| NSS | Mean z-normalised saliency at fixated pixels. A raised background lowers it. | Higher |
 
-### Metrics
-
-| Metric | Function | What it counts | Better |
-|---|---|---|---|
-| AUC-Borji | `AUC_Borji` | Location-based. Treats the saliency map as a binary classifier over pixels and draws an ROC curve, with negatives sampled uniformly from all pixels of the image. Only the ordering of pixel values matters, and there is no correction for centre bias. | Higher |
-| CC | `CC` | Pearson correlation between the predicted map and the ground-truth map. It is symmetric, so false positives and false negatives cost the same. | Higher |
-| KL divergence | `KLdiv` | Asymmetric. Near-zero predicted density where the ground truth has mass costs far more than density spread over unfixated regions. | Lower |
-| NSS | `NSS` | Mean of the z-normalised saliency map at fixated pixels. A raised background lowers it. | Higher |
-
-### Preprocessing
-
-`evaluate.m` binarises each fixation map with `imbinarize` and passes that same binary map to all four metrics. CC and KL are therefore computed against a binary map, not a continuous fixation density. Predicted maps are scored as the models saved them, with no extra blur. An image is skipped unless both its TD and ASD fixation maps exist.
-
-### Pipeline
-
-1. `saliencyPredictionsCode/FES.m` and the two notebooks generate the saliency maps.
-2. The maps go into `PredictionMaps/<Model>/` as PNG files named after the source image. No script does this step. `downloadAndUnzip.m` fetches a packaged `PredictionMaps.zip` instead.
-3. `cloneMetricsCode.m` fetches the metric functions.
-4. `evaluate.m` writes per-image scores, one CSV per model and group, and a summary CSV per group.
-5. `visualize.m` plots the summary CSVs and saves the figures to `visuals/`.
+`evaluate.m` binarises each fixation map with `imbinarize` and passes that map to all four metrics, so CC and KL are computed against a binary map, not a continuous fixation density. Predicted maps are scored as saved, with no extra blur.
 
 ## Results
 
-Means over five images, from `Results/TD_summary.csv` and `Results/ASD_summary.csv`. Higher is better for AUC-Borji, CC and NSS. Lower is better for KL.
+Means over five images, from `Results/TD_summary.csv` and `Results/ASD_summary.csv`.
 
 TD fixation maps:
 
@@ -65,89 +51,52 @@ ASD fixation maps:
 | SalFBNet | 0.789 | 0.640 | 1.221 | 2.186 |
 | TranSalNet | 0.825 | 0.630 | 1.743 | 2.140 |
 
-The summary files also hold the sample standard deviation behind each mean. The `TD_metrics_<Model>.csv` and `ASD_metrics_<Model>.csv` files hold the per-image scores.
+The summary files also hold standard deviations, and `TD_metrics_<Model>.csv` and `ASD_metrics_<Model>.csv` hold the per-image scores.
 
 ![Mean scores per model against TD and ASD fixation maps](visuals/bar.png)
 
-## Findings and limitations
-
-What the numbers support:
+## Findings
 
 - FES has the worst mean on every metric in both groups.
-- All three models have worse means on ASD maps under AUC-Borji, KL and NSS. Under CC the two deep models are worse on ASD maps and FES is marginally better, 0.428 against 0.403.
-- SalFBNet and TranSalNet are not separable on this sample. TranSalNet has the higher mean AUC-Borji in both groups, and SalFBNet has the better mean CC, KL and NSS. No gap between them exceeds about 1.6 standard errors of the per-image differences, so I do not rank them.
+- All three models score worse on ASD maps under AUC-Borji, KL and NSS. Under CC the two deep models are worse on ASD maps, and FES is marginally better (0.428 against 0.403).
+- SalFBNet and TranSalNet are not separable here. TranSalNet has the higher AUC-Borji, SalFBNet the better CC, KL and NSS, and no gap exceeds about 1.6 standard errors of the per-image differences.
 
-That split is consistent with what each metric counts. AUC-Borji reads only the ordering of pixels, while CC, KL and NSS also read the map's magnitude and spread. Five images can illustrate that difference. They cannot establish it.
+That split fits what each metric counts: AUC-Borji reads only the ordering of pixels, while the others also read the map's magnitude and spread. Five images can illustrate this, not establish it.
 
-Limitations:
+## Limitations
 
-- Five images. Every result here is descriptive, and ranking the two deep models needs many more.
-- One image moves the ASD KL means. Image 100 scores 6.691 for FES and 4.494 for TranSalNet. No other ASD KL value for those two models is above 2.210.
-- Binarised ground truth. CC and KL here are not comparable with scores computed against continuous fixation density maps.
-- No fixed seed. AUC-Borji samples its negatives at random and `evaluate.m` sets no seed, so a re-run can shift that column slightly.
-- Group-level maps average over individuals. Any difference here is in aggregate, says nothing about a particular viewer, and does not support diagnostic use.
-- Transfer only. This measures how TD-trained models transfer to ASD fixation data, not how to build an ASD-specific predictor.
+- Five images, so every result is descriptive.
+- One image moves the ASD KL means: image 100 scores 6.691 for FES and 4.494 for TranSalNet, while no other ASD KL value for those models is above 2.210.
+- CC and KL use binarised ground truth, so they are not comparable with scores against continuous density maps.
+- AUC-Borji samples negatives at random and no seed is set, so a re-run can shift that column slightly.
+- Group-level maps average over viewers. The results say nothing about an individual and do not support diagnostic use.
+- This measures how TD-trained models transfer to ASD data, not how to build an ASD-specific model.
 
 ## Reproducing
 
-Requirements:
+Requirements: MATLAB R2018b or later with the Image Processing Toolbox, `git` on the path and internet access. Colab and Google Drive are needed only to regenerate the deep-model maps.
 
-- MATLAB R2018b or later with the Image Processing Toolbox. The scripts call `isfolder`, `isfile`, `sgtitle` and `imbinarize`.
-- `git` on the system path, and internet access. `FES.m` also calls `zip` on macOS and Linux.
-- A Google account for Colab and Drive, only if you regenerate the SalFBNet and TranSalNet maps.
-
-```bash
-git clone https://github.com/m-nobinur/asd-td-saliency-comparison.git
-```
-
-Then in MATLAB, with the repository as the current folder:
+In MATLAB, with the repository as the current folder:
 
 ```matlab
 downloadAndUnzip    % TrainingData/ and PredictionMaps/
-cloneMetricsCode    % metric functions, added to the path for this session
+cloneMetricsCode    % metric functions, added to the path
 evaluate            % per-image and summary CSVs in Results/
-visualize           % figures from the summary CSVs, saved to visuals/
+visualize           % figures in visuals/
 ```
 
-Three things to know before running:
-
-- Data lives in the current folder as `TrainingData/TD_FixMaps`, `TrainingData/ASD_FixMaps` and `PredictionMaps/<Model>/*.png`. If `TrainingData.zip` or `PredictionMaps.zip` is already in the current folder, `downloadAndUnzip` unpacks that copy and skips the download.
-- `evaluate.m` overwrites the CSVs in `Results/`, and `visualize.m` overwrites the PNGs in `visuals/`. Copy them first if you want to keep the committed numbers.
-- `evaluate.m` and `visualize.m` clear the workspace when they start.
+`evaluate` and `visualize` clear the workspace and overwrite the committed CSVs and figures, so copy those first if you want to keep them.
 
 ### Regenerating the saliency maps
 
-This is optional, because `downloadAndUnzip` fetches a packaged `PredictionMaps.zip`.
+Optional, since `downloadAndUnzip` fetches the packaged `PredictionMaps.zip`.
 
-**FES.** Run `saliencyPredictionsCode/FES.m`. Its paths are relative to MATLAB's current folder. It reads images from `TrainingData/Images`. If that folder does not exist, it creates it and unpacks `1.zip` from the current folder into it. I ran it in a hosted MATLAB session with an upload size limit, which is why the images arrive as a zip. The script clones the FES repository, writes `result/FES/<name>.png` and zips that folder as `FES.zip`.
+- **FES:** run `saliencyPredictionsCode/FES.m`. It reads `TrainingData/Images`, unpacking `1.zip` there if the folder is missing, and zips its output as `FES.zip`.
+- **SalFBNet:** run `saliencyPredictionsCode/SalFBNet.ipynb` on a Colab GPU, with `Saliency4asd.zip` at the top of Drive. Upload `FBNet_Res18Fixed_best_model.pth` when asked.
+- **TranSalNet:** run `saliencyPredictionsCode/TranSalNet.ipynb` on a Colab GPU (it fails on CPU), with `Saliency4asd.zip` at the top of Drive and the weights, including `TranSalNet_Res.pth`, in `MyDrive/Saliency/models/TransalNet`.
 
-**SalFBNet.** Open `saliencyPredictionsCode/SalFBNet.ipynb` in Google Colab. The saved notebook used a T4 GPU runtime. It expects `Saliency4asd.zip` at the top level of your Google Drive and asks you to upload `FBNet_Res18Fixed_best_model.pth`. It downloads `SalFBNet.zip`, which holds `results_Res18Fixed/Val_PseudoSal`.
-
-**TranSalNet.** Open `saliencyPredictionsCode/TranSalNet.ipynb` in Google Colab with a GPU runtime. The inference cell casts its input to `torch.cuda.FloatTensor`, so it fails on CPU. It expects `Saliency4asd.zip` at the top level of Drive and the pretrained weights, including `TranSalNet_Res.pth`, in `MyDrive/Saliency/models/TransalNet`. It downloads `TranSalNet.zip`, which holds `output/TranSalNet`.
-
-Afterwards, unpack the maps into `PredictionMaps/FES`, `PredictionMaps/SalFBNet` and `PredictionMaps/TranSalNet`. `evaluate.m` reads only `.png` files and treats every subfolder of `PredictionMaps/` as a model.
-
-## Repository layout
-
-```
-.
-├── downloadAndUnzip.m            fetch TrainingData/ and PredictionMaps/
-├── cloneMetricsCode.m            fetch the metric code from cvzoya/saliency
-├── evaluate.m                    score predictions, write per-image and summary CSVs
-├── visualize.m                   bar charts and heatmaps, saved to visuals/
-├── saliencyPredictionsCode/
-│   ├── FES.m                     FES maps, MATLAB
-│   ├── SalFBNet.ipynb            SalFBNet maps, Colab
-│   └── TranSalNet.ipynb          TranSalNet maps, Colab
-├── Results/
-│   ├── TD_metrics_<Model>.csv    per-image scores against TD maps
-│   ├── ASD_metrics_<Model>.csv   per-image scores against ASD maps
-│   ├── TD_summary.csv            mean and standard deviation per model
-│   └── ASD_summary.csv
-├── visuals/                      bar.png, heatmap_td.png, heatmap_asd.png
-└── LICENSE
-```
+Put the PNG maps in `PredictionMaps/FES`, `PredictionMaps/SalFBNet` and `PredictionMaps/TranSalNet`. `evaluate.m` treats every subfolder there as a model.
 
 ## Licence
 
-Apache License 2.0, see [LICENSE](LICENSE). It covers the code in this repository. The FES, SalFBNet and TranSalNet code and weights, the benchmark metric code and the dataset are not included here and keep their own terms.
+Apache License 2.0, see [LICENSE](LICENSE). It covers the code in this repository. The model code and weights, the metric code and the dataset are not included and keep their own terms.
